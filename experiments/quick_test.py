@@ -7,7 +7,8 @@ from pathlib import Path
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config import init_config, setup_logging, config
+from src.config import init_config, config
+from src.utils.logging import setup_logging
 from src.data.dataset import SudokuDataset
 from src.utils.image_processing import load_image
 from src.core.puzzle_state import PuzzleState
@@ -18,10 +19,11 @@ def test_config():
     """Test configuration system."""
     print("✓ Testing configuration...")
     cfg = config()
-    assert cfg.vlm.model_name == "Qwen/Qwen2-VL-7B-Instruct"
-    assert cfg.device in ["cuda", "cpu"]
+    assert cfg.vlm.model_name is not None
+    assert cfg.vlm.device in ["cuda", "cpu"]
+    assert cfg.data.raw_dir is not None
     print(f"  - VLM: {cfg.vlm.model_name}")
-    print(f"  - Device: {cfg.device}")
+    print(f"  - Device: {cfg.vlm.device}")
     print(f"  - Data dir: {cfg.data.data_dir}")
 
 

@@ -18,8 +18,8 @@ class PuzzleState:
 
     def __post_init__(self):
         """Validate and initialize state."""
-        if not self.empty_cells and not self.filled_cells:
-            # Auto-populate empty cells
+        if not self.empty_cells:
+            # Auto-populate empty cells from grid_size and filled_cells
             rows, cols = self.grid_size
             all_cells = {(i, j) for i in range(rows) for j in range(cols)}
             filled = set(self.filled_cells.keys())

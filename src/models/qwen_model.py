@@ -46,15 +46,25 @@ class QwenVLModel(VLMInterface):
         logger.info(f"Loading model {self.model_name} on {self.device}")
 
         # Set precision
-        torch_dtype = torch.float16 if self.precision == "float16" else torch.float32
+        dtype = torch.float16 if self.precision == "float16" else torch.float32
 
         # Load model
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-            self.model_name,
-            torch_dtype=torch_dtype,
-            attn_implementation="flash_attention_2",
-            device_map=self.device,
-        )
+        try:
+            # Try with device_map first (requires accelerate)
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                self.model_name,
+                dtype=dtype,
+                attn_implementation="flash_attention_2",
+                device_map=self.device,
+            )
+        except ValueError:
+            # Fallback: load without device_map and move manually
+            logger.info("Loading without device_map, will move to device manually")
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                self.model_name,
+                torch_dtype=dtype,
+            )
+            self.model = self.model.to(self.device)
 
         # Load processor
         self.processor = AutoProcessor.from_pretrained(self.model_name)

@@ -72,16 +72,18 @@ See [Dataset Setup](#dataset-setup) section below.
 ```bash
 python -c "
 from src.models.qwen_model import QwenVLModel
-from src.config import init_config, setup_logging
+from src.config import init_config
+from src.utils.logging import setup_logging
 
 # Initialize
 init_config()
 setup_logging()
 
 # Test model
-with QwenVLModel() as vlm:
-    vlm.load_model()
-    print('✓ Model loaded successfully')
+vlm = QwenVLModel()
+vlm.load_model()
+print('✓ Model loaded successfully')
+vlm.unload_model()
 "
 ```
 
@@ -116,6 +118,7 @@ pip install kaggle
 kaggle datasets download -d bryanpark/sudoku
 
 # 4. Extract
+mkdir data
 unzip sudoku.zip -d data/raw/
 
 # 5. Prepare dataset (convert to images)
