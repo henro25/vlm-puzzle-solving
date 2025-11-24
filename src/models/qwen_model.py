@@ -108,7 +108,10 @@ class QwenVLModel(VLMInterface):
         if isinstance(image, (str, Path)):
             image = load_image(image)
 
-        # Prepare inputs
+        max_tokens = max_tokens or self.default_max_tokens
+        temperature = temperature or self.default_temperature
+
+        # Prepare inputs using the new API
         messages = [
             {
                 "role": "user",
@@ -119,21 +122,15 @@ class QwenVLModel(VLMInterface):
             }
         ]
 
-        max_tokens = max_tokens or self.default_max_tokens
-        temperature = temperature or self.default_temperature
-
-        # Process and generate
+        # Process text and image together
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-        image_inputs, video_inputs = self.processor.process_images(
-            [image], None, self.model.config
-        )
 
+        # Process inputs (handles image internally)
         inputs = self.processor(
             text=text,
-            images=image_inputs,
-            videos=video_inputs,
+            images=[image],
             padding=True,
             return_tensors="pt",
         ).to(self.device)
