@@ -1,0 +1,98 @@
+# Environment
+.env
+.env.local
+.env.*.local
+venv/
+env/
+ENV/
+.venv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Data (too large to commit)
+data/raw/
+data/processed/
+data/ground_truth/
+
+# Model checkpoints
+*.pt
+*.pth
+models/checkpoints/
+*.bin
+
+# Results and logs
+results/
+logs/
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+*.nbstripout
+
+# Large datasets
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# API keys and secrets
+*.json
+.kaggle/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.~*
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# IDE-specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# Generated files
+*.pkl
+*.pickle
