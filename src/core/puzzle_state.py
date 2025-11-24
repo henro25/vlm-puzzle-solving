@@ -18,12 +18,17 @@ class PuzzleState:
 
     def __post_init__(self):
         """Validate and initialize state."""
+        # Auto-populate empty cells if not explicitly provided
         if not self.empty_cells:
             # Auto-populate empty cells from grid_size and filled_cells
             rows, cols = self.grid_size
             all_cells = {(i, j) for i in range(rows) for j in range(cols)}
             filled = set(self.filled_cells.keys())
             self.empty_cells = sorted(list(all_cells - filled))
+        else:
+            # If empty_cells provided, deduplicate with filled_cells
+            empty_set = set(self.empty_cells) - set(self.filled_cells.keys())
+            self.empty_cells = sorted(list(empty_set))
 
         # Initialize default domains if not provided
         if not self.domains:
