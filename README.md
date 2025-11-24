@@ -104,6 +104,11 @@ pip install kaggle
 # 2. Set up Kaggle credentials
 # Go to https://www.kaggle.com/settings/account
 # Download your API token (kaggle.json)
+# The kaggle.json should be in this form:
+# {
+#  "username": "your_kaggle_username",
+#  "key": "your_api_key"
+#}
 # Place in ~/.kaggle/kaggle.json
 # chmod 600 ~/.kaggle/kaggle.json
 
