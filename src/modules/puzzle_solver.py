@@ -43,6 +43,7 @@ class PuzzleSolver:
         puzzle_image: Path,
         training_examples: SudokuDataset,
         extract_state: bool = True,
+        ground_truth_state: Optional[Dict] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Solve a single puzzle end-to-end.
@@ -51,6 +52,7 @@ class PuzzleSolver:
             puzzle_image: Path to unsolved puzzle image
             training_examples: Solved examples for rule learning
             extract_state: Whether to use VLM for state extraction (vs ground truth)
+            ground_truth_state: Ground truth initial state (optional, used if extract_state=False)
 
         Returns:
             Result dict with solution, steps, timing info, or None if fails
@@ -87,7 +89,20 @@ class PuzzleSolver:
         # Step 2: Extract state
         logger.info("Step 2: Extracting puzzle state...")
         try:
-            state = self.state_module.extract_state(puzzle_image, validate=False)
+            if extract_state and ground_truth_state is None:
+                state = self.state_module.extract_state(puzzle_image, validate=False)
+            elif ground_truth_state is not None:
+                # Use ground truth state
+                from src.core.puzzle_state import PuzzleState
+                state = PuzzleState(
+                    grid_size=(9, 9),
+                    filled_cells=ground_truth_state.get("filled_cells", {}),
+                )
+                logger.info("Using ground truth state")
+            else:
+                result["errors"].append("No state provided and extract_state=False")
+                return result
+
             if state is None:
                 result["errors"].append("State extraction failed")
                 return result

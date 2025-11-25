@@ -52,17 +52,23 @@ def main():
     solver = PuzzleSolver(vlm)
 
     # Solve puzzles
-    print("\n4. Solving puzzles...")
+    print("\n4. Solving puzzles (using ground truth state)...")
     results = []
     for puzzle in test_puzzles:
         print(f"\n   Puzzle: {puzzle.puzzle_id}")
         print(f"   Image: {puzzle.image_path}")
 
+        # Convert initial state to format expected by solver
+        ground_truth_state = {
+            "filled_cells": puzzle.initial_state,
+        }
+
         try:
             result = solver.solve_puzzle(
                 puzzle_image=puzzle.image_path,
                 training_examples=training_examples,
-                extract_state=True,
+                extract_state=False,
+                ground_truth_state=ground_truth_state,
             )
 
             if result is None:
