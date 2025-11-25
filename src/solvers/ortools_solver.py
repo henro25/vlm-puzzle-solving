@@ -67,12 +67,26 @@ class ORToolsSolver:
             solver = cp_model.CpSolver()
             solver.parameters.max_time_in_seconds = self.timeout
             solver.parameters.num_workers = self.num_workers
+            # Enable logging for debugging
+            solver.parameters.log_search_progress = False
 
             status = solver.Solve(model)
             elapsed = time.time() - start_time
 
+            # Map status codes
+            status_names = {
+                0: "OPTIMAL",
+                1: "FEASIBLE",
+                2: "INFEASIBLE",
+                3: "MODEL_INVALID",
+            }
+            status_name = status_names.get(status, f"UNKNOWN({status})")
+
             if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-                logger.warning(f"No solution found (status: {status}, time: {elapsed:.2f}s)")
+                logger.warning(
+                    f"No solution found (status: {status_name}, time: {elapsed:.2f}s). "
+                    f"Puzzle may be unsolvable or OR-Tools model is incomplete."
+                )
                 return None
 
             # Extract solution
@@ -80,7 +94,7 @@ class ORToolsSolver:
             for var_name, cp_var in self.var_map.items():
                 solution[var_name] = solver.Value(cp_var)
 
-            logger.info(f"Solution found in {elapsed:.2f}s (status: {status})")
+            logger.info(f"Solution found in {elapsed:.2f}s (status: {status_name})")
             return solution
 
         except Exception as e:
@@ -132,20 +146,24 @@ class ORToolsSolver:
                     cp_var = model.NewIntVar(domain[0], domain[0], var_name)
                 else:
                     # Variable with domain
+                    # For Sudoku and similar problems, domain is always [1-9]
+                    # OR-Tools requires contiguous domains, so we use min/max
                     cp_var = model.NewIntVar(min(domain), max(domain), var_name)
-                    # Add element constraint if domain is not contiguous
+
+                    # If domain is not contiguous, add explicit constraint
+                    # This is rare for Sudoku but handles edge cases
                     if max(domain) - min(domain) + 1 != len(domain):
-                        model.AddElement(
-                            cp_var, domain, cp_model.NewConstant(0)
-                        )
+                        # Add constraint: variable must be one of the allowed values
+                        model.Add(cp_var.Proto().domain.extend(domain))
 
                 self.var_map[var_name] = cp_var
                 logger.debug(
-                    f"Created variable {var_name} with domain {domain}"
+                    f"Created variable {var_name} with domain size {len(domain)}"
                 )
 
             # Add constraints
             logger.debug("Adding constraints...")
+            unsupported_constraint_count = 0
             for constraint in csp_problem.constraints:
                 if constraint.predicate is None:
                     logger.warning(f"Skipping constraint {constraint.name} with no predicate")
@@ -168,12 +186,20 @@ class ORToolsSolver:
                         model.Add(sum(scope_vars) == target_sum)
                         logger.debug(f"Added Sum constraint (target={target_sum})")
                     else:
-                        # Generic constraint: try to handle with callback
-                        # For now, skip unsupported constraint types
-                        logger.warning(f"Skipping constraint {constraint.name} (not directly supported)")
+                        # Generic constraint: OR-Tools doesn't support arbitrary predicates
+                        # This is a limitation - complex constraints need fallback solver
+                        logger.warning(f"OR-Tools cannot handle constraint {constraint.name} directly")
+                        unsupported_constraint_count += 1
 
                 except Exception as e:
                     logger.error(f"Failed to add constraint {constraint.name}: {e}")
+                    unsupported_constraint_count += 1
+
+            if unsupported_constraint_count > 0:
+                logger.warning(
+                    f"OR-Tools model has {unsupported_constraint_count} unsupported constraints. "
+                    f"Solution may be incomplete or incorrect. Consider using python-constraint solver."
+                )
 
             logger.info(f"OR-Tools model created with {len(self.var_map)} variables")
             return model

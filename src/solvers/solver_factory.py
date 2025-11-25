@@ -23,7 +23,7 @@ class SolverFactory:
         Create a solver with the specified backend.
 
         Args:
-            backend: "constraint" or "ortools"
+            backend: "constraint" or "ortools" or "auto" (default)
             **kwargs: Additional arguments for solver initialization
 
         Returns:
@@ -33,6 +33,16 @@ class SolverFactory:
             ValueError: If backend is unsupported
             ImportError: If required library is not installed
         """
+        if backend == "auto":
+            # Auto-select: try OR-Tools, fall back to python-constraint
+            try:
+                from src.solvers.ortools_solver import ORToolsSolver
+                logger.info("Using OR-Tools solver (fast, optimized for structured problems)")
+                return ORToolsSolver(**kwargs)
+            except ImportError:
+                logger.warning("OR-Tools not available. Using python-constraint solver.")
+                backend = "constraint"
+
         if backend == "ortools":
             try:
                 from src.solvers.ortools_solver import ORToolsSolver
@@ -47,7 +57,7 @@ class SolverFactory:
             logger.info("Using python-constraint solver (flexible, slower)")
             return CSPSolver(**kwargs)
 
-        raise ValueError(f"Unknown solver backend: {backend}")
+        raise ValueError(f"Unknown solver backend: {backend}. Use 'ortools', 'constraint', or 'auto'.")
 
     @staticmethod
     def solve_fast(csp_problem: CSPProblem, timeout: int = 60) -> Optional[Dict[str, int]]:
