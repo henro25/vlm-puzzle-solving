@@ -146,13 +146,34 @@ class CSPSolver:
         try:
             problem = Problem()
 
-            # Add variables
-            for var_name, variable in csp_problem.variables.items():
-                problem.addVariable(var_name, variable.domain)
-                logger.debug(f"Added variable {var_name} with domain {variable.domain}")
+            # Optimization 1: Variable ordering (domain size heuristic)
+            # Add variables in order of domain size (smallest first)
+            # This prioritizes variables with fewer choices, improving pruning
+            sorted_vars = sorted(
+                csp_problem.variables.items(),
+                key=lambda x: len(x[1].domain),
+            )
 
-            # Add constraints
-            for constraint in csp_problem.constraints:
+            for var_name, variable in sorted_vars:
+                problem.addVariable(var_name, variable.domain)
+                if len(variable.domain) == 1:
+                    logger.debug(f"Added assigned variable {var_name} = {variable.domain[0]}")
+                else:
+                    logger.debug(f"Added variable {var_name} with domain size {len(variable.domain)}")
+
+            logger.debug(f"Variable order: domains {[len(csp_problem.variables[v[0]].domain) for v in sorted_vars[:5]]} (first 5)")
+
+            # Optimization 2: Constraint ordering (most constraining first)
+            # Add constraints that constrain more variables first
+            # This provides better pruning early in search
+            sorted_constraints = sorted(
+                csp_problem.constraints,
+                key=lambda c: len(c.scope),
+                reverse=True,
+            )
+
+            constraint_count = 0
+            for constraint in sorted_constraints:
                 if constraint.predicate is None:
                     logger.warning(f"Skipping constraint {constraint.name} with no predicate")
                     continue
@@ -172,9 +193,12 @@ class CSPSolver:
 
                 try:
                     problem.addConstraint(wrapped_predicate, constraint.scope)
-                    logger.debug(f"Added constraint {constraint.name} on {constraint.scope}")
+                    constraint_count += 1
+                    logger.debug(f"Added constraint {constraint.name} on {len(constraint.scope)} variables")
                 except Exception as e:
                     logger.error(f"Failed to add constraint {constraint.name}: {e}")
+
+            logger.info(f"Added {constraint_count}/{len(csp_problem.constraints)} constraints")
 
             return problem
 

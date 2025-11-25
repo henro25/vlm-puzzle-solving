@@ -7,6 +7,7 @@ requests>=2.31.0
 
 # CSP Solving
 python-constraint>=1.4.0
+ortools>=9.7.2996  # Google's OR-Tools for fast CSP solving
 
 # Data & ML
 numpy>=1.24.0

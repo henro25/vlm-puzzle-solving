@@ -8,7 +8,7 @@ from src.models.vlm_interface import VLMInterface
 from src.modules.rule_inference import RuleInferenceModule
 from src.modules.state_extraction import StateExtractionModule
 from src.modules.csp_translator import CSPTranslator
-from src.solvers.csp_solver import CSPSolver
+from src.solvers.solver_factory import SolverFactory
 from src.data.dataset import SudokuDataset, SudokuPuzzle
 
 logger = logging.getLogger(__name__)
@@ -26,17 +26,20 @@ class PuzzleSolver:
     5. Return solution
     """
 
-    def __init__(self, vlm: VLMInterface):
+    def __init__(self, vlm: VLMInterface, csp_solver_backend: str = "ortools"):
         """
         Initialize puzzle solver.
 
         Args:
             vlm: Vision-Language Model interface
+            csp_solver_backend: Solver backend ("ortools" or "constraint")
         """
         self.vlm = vlm
         self.rule_module = RuleInferenceModule(vlm)
         self.state_module = StateExtractionModule(vlm)
-        self.csp_solver = CSPSolver(timeout=60)
+        self.csp_solver = SolverFactory.create_solver(
+            backend=csp_solver_backend, timeout=60
+        )
 
     def solve_puzzle(
         self,
