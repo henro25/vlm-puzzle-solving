@@ -88,10 +88,15 @@ class QwenVLModel(VLMInterface):
 
         # Load processor
         print(f"  → Loading processor...")
+        import sys
+        sys.stdout.flush()
         self.processor = AutoProcessor.from_pretrained(self.model_name)
         logger.info(f"Processor loaded")
+        print(f"  → Processor loaded")
+        sys.stdout.flush()
 
         logger.info(f"✓ Setup complete")
+        print(f"  ✓ Model fully initialized")
 
     def unload_model(self) -> None:
         """Unload model from memory."""
@@ -128,6 +133,8 @@ class QwenVLModel(VLMInterface):
 
         # Load image if path provided
         logger.debug("Loading image...")
+        import sys
+        print("  [query] Loading image...", flush=True)
         if isinstance(image, (str, Path)):
             image = load_image(image)
 
@@ -136,6 +143,7 @@ class QwenVLModel(VLMInterface):
 
         # Prepare inputs using the new API
         logger.debug("Preparing message format...")
+        print("  [query] Preparing message format...", flush=True)
         messages = [
             {
                 "role": "user",
@@ -148,12 +156,14 @@ class QwenVLModel(VLMInterface):
 
         # Process text and image together
         logger.debug("Applying chat template...")
+        print("  [query] Applying chat template...", flush=True)
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
 
         # Process inputs (handles image internally)
         logger.debug("Processing inputs (image + text)...")
+        print("  [query] Processing inputs...", flush=True)
         inputs = self.processor(
             text=text,
             images=[image],
@@ -163,6 +173,7 @@ class QwenVLModel(VLMInterface):
 
         # Generate with optimizations
         logger.debug(f"Generating response (max_tokens={max_tokens})...")
+        print(f"  [query] Generating response (max_tokens={max_tokens})...", flush=True)
         with torch.no_grad():
             output_ids = self.model.generate(
                 **inputs,
@@ -174,6 +185,7 @@ class QwenVLModel(VLMInterface):
 
         # Decode response
         logger.debug("Decoding response...")
+        print("  [query] Decoding response...", flush=True)
         generated_ids = [
             output_ids[len(inputs["input_ids"][i]) :]
             for i, output_ids in enumerate(output_ids)
@@ -183,6 +195,7 @@ class QwenVLModel(VLMInterface):
         )[0]
 
         logger.debug(f"Response generated: {len(response_text)} characters")
+        print(f"  [query] Response generated: {len(response_text)} characters", flush=True)
 
         return VLMResponse(
             text=response_text,
