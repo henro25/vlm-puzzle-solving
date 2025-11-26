@@ -60,7 +60,9 @@ class PuzzleSolver:
         Returns:
             Result dict with solution, steps, timing info, or None if fails
         """
+        import time
         logger.info(f"Solving puzzle: {puzzle_image}")
+        print(f"  [TIMING] Starting puzzle solve at {time.strftime('%H:%M:%S')}")
 
         result = {
             "puzzle_image": str(puzzle_image),
@@ -72,6 +74,7 @@ class PuzzleSolver:
 
         # Step 1: Infer rules
         logger.info("Step 1: Inferring constraint rules...")
+        print(f"  [TIMING] Starting rule inference at {time.strftime('%H:%M:%S')}")
         try:
             rules = self.rule_module.infer_rules(list(training_examples), validate=True)
             if rules is None:
@@ -82,6 +85,7 @@ class PuzzleSolver:
                 "num_rules": len(rules.rules),
                 "confidence": rules.metadata.get("confidence", 0),
             }
+            print(f"  [TIMING] Rule inference done at {time.strftime('%H:%M:%S')}")
             logger.info(f"  ✓ Inferred {len(rules.rules)} rules")
 
         except Exception as e:
@@ -91,6 +95,7 @@ class PuzzleSolver:
 
         # Step 2: Extract state
         logger.info("Step 2: Extracting puzzle state...")
+        print(f"  [TIMING] Starting state extraction at {time.strftime('%H:%M:%S')}")
         try:
             if extract_state and ground_truth_state is None:
                 state = self.state_module.extract_state(puzzle_image, validate=False)
@@ -114,6 +119,7 @@ class PuzzleSolver:
                 "filled_cells": len(state.filled_cells),
                 "empty_cells": len(state.empty_cells),
             }
+            print(f"  [TIMING] State extraction done at {time.strftime('%H:%M:%S')}")
             logger.info(f"  ✓ Extracted state: {len(state.filled_cells)} filled, {len(state.empty_cells)} empty")
 
         except Exception as e:
@@ -123,6 +129,7 @@ class PuzzleSolver:
 
         # Step 3: Translate to CSP
         logger.info("Step 3: Translating to CSP...")
+        print(f"  [TIMING] Starting CSP translation at {time.strftime('%H:%M:%S')}")
         try:
             csp = CSPTranslator.translate(rules, state)
             if csp is None:
@@ -133,6 +140,7 @@ class PuzzleSolver:
                 "num_variables": len(csp.variables),
                 "num_constraints": len(csp.constraints),
             }
+            print(f"  [TIMING] CSP translation done at {time.strftime('%H:%M:%S')}")
             logger.info(f"  ✓ CSP created: {len(csp.variables)} variables, {len(csp.constraints)} constraints")
 
         except Exception as e:
@@ -142,10 +150,12 @@ class PuzzleSolver:
 
         # Step 4: Solve
         logger.info("Step 4: Solving CSP...")
+        print(f"  [TIMING] Starting CSP solving at {time.strftime('%H:%M:%S')}")
         try:
             solution = self.csp_solver.solve(csp)
             if solution is None:
                 result["errors"].append("CSP solver found no solution")
+                print(f"  [TIMING] CSP solving failed at {time.strftime('%H:%M:%S')}")
                 logger.warning("  ✗ No solution found")
                 return result
 
@@ -153,6 +163,7 @@ class PuzzleSolver:
             result["steps"]["csp_solving"] = {
                 "num_variables_assigned": len(solution),
             }
+            print(f"  [TIMING] CSP solving done at {time.strftime('%H:%M:%S')}")
             logger.info(f"  ✓ Solution found: {len(solution)} variables assigned")
             result["success"] = True
 
@@ -161,6 +172,7 @@ class PuzzleSolver:
             logger.error(f"CSP solving failed: {e}")
             return result
 
+        print(f"  [TIMING] Puzzle solved at {time.strftime('%H:%M:%S')}")
         logger.info("✓ Puzzle solved successfully!")
         return result
 
