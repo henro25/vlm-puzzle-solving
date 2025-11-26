@@ -99,18 +99,23 @@ class PuzzleSolver:
 
         # Step 2: Extract state
         logger.info("Step 2: Extracting puzzle state...")
-        print(f"  [TIMING] Starting state extraction at {time.strftime('%H:%M:%S')}")
+        print(f"  [TIMING] Starting state extraction at {time.strftime('%H:%M:%S')}", flush=True)
         try:
+            print(f"  [TIMING] extract_state={extract_state}, ground_truth_state={ground_truth_state is not None}", flush=True)
             if extract_state and ground_truth_state is None:
+                print(f"  [TIMING] Calling state_module.extract_state...", flush=True)
                 state = self.state_module.extract_state(puzzle_image, validate=False)
+                print(f"  [TIMING] state_module.extract_state returned", flush=True)
             elif ground_truth_state is not None:
                 # Use ground truth state
+                print(f"  [TIMING] Using ground truth state", flush=True)
                 from src.core.puzzle_state import PuzzleState
                 state = PuzzleState(
                     grid_size=(9, 9),
                     filled_cells=ground_truth_state.get("filled_cells", {}),
                 )
                 logger.info("Using ground truth state")
+                print(f"  [TIMING] PuzzleState created", flush=True)
             else:
                 result["errors"].append("No state provided and extract_state=False")
                 return result
@@ -123,12 +128,14 @@ class PuzzleSolver:
                 "filled_cells": len(state.filled_cells),
                 "empty_cells": len(state.empty_cells),
             }
-            print(f"  [TIMING] State extraction done at {time.strftime('%H:%M:%S')}")
+            print(f"  [TIMING] State extraction done at {time.strftime('%H:%M:%S')}", flush=True)
             logger.info(f"  ✓ Extracted state: {len(state.filled_cells)} filled, {len(state.empty_cells)} empty")
 
         except Exception as e:
             result["errors"].append(f"State extraction error: {e}")
             logger.error(f"State extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
             return result
 
         # Step 3: Translate to CSP
