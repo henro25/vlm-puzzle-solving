@@ -74,9 +74,11 @@ class PuzzleSolver:
 
         # Step 1: Infer rules
         logger.info("Step 1: Inferring constraint rules...")
-        print(f"  [TIMING] Starting rule inference at {time.strftime('%H:%M:%S')}")
+        print(f"  [TIMING] Starting rule inference at {time.strftime('%H:%M:%S')}", flush=True)
         try:
+            print(f"  [TIMING] About to call infer_rules...", flush=True)
             rules = self.rule_module.infer_rules(list(training_examples), validate=True)
+            print(f"  [TIMING] infer_rules returned", flush=True)
             if rules is None:
                 result["errors"].append("Rule inference failed")
                 return result
@@ -85,13 +87,15 @@ class PuzzleSolver:
                 "num_rules": len(rules.rules),
                 "confidence": rules.metadata.get("confidence", 0),
             }
-            print(f"  [TIMING] Rule inference done at {time.strftime('%H:%M:%S')}")
+            print(f"  [TIMING] Rule inference done at {time.strftime('%H:%M:%S')}", flush=True)
             logger.info(f"  ✓ Inferred {len(rules.rules)} rules")
 
         except Exception as e:
             result["errors"].append(f"Rule inference error: {e}")
             logger.error(f"Rule inference failed: {e}")
             return result
+
+        print(f"  [TIMING] Past rule inference exception block at {time.strftime('%H:%M:%S')}", flush=True)
 
         # Step 2: Extract state
         logger.info("Step 2: Extracting puzzle state...")
