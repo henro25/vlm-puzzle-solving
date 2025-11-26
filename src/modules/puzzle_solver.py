@@ -140,9 +140,11 @@ class PuzzleSolver:
 
         # Step 3: Translate to CSP
         logger.info("Step 3: Translating to CSP...")
-        print(f"  [TIMING] Starting CSP translation at {time.strftime('%H:%M:%S')}")
+        print(f"  [TIMING] Starting CSP translation at {time.strftime('%H:%M:%S')}", flush=True)
         try:
+            print(f"  [TIMING] About to call CSPTranslator.translate...", flush=True)
             csp = CSPTranslator.translate(rules, state)
+            print(f"  [TIMING] CSPTranslator.translate returned", flush=True)
             if csp is None:
                 result["errors"].append("CSP translation failed")
                 return result
@@ -151,19 +153,23 @@ class PuzzleSolver:
                 "num_variables": len(csp.variables),
                 "num_constraints": len(csp.constraints),
             }
-            print(f"  [TIMING] CSP translation done at {time.strftime('%H:%M:%S')}")
+            print(f"  [TIMING] CSP translation done at {time.strftime('%H:%M:%S')}", flush=True)
             logger.info(f"  ✓ CSP created: {len(csp.variables)} variables, {len(csp.constraints)} constraints")
 
         except Exception as e:
             result["errors"].append(f"CSP translation error: {e}")
             logger.error(f"CSP translation failed: {e}")
+            import traceback
+            traceback.print_exc()
             return result
 
         # Step 4: Solve
         logger.info("Step 4: Solving CSP...")
-        print(f"  [TIMING] Starting CSP solving at {time.strftime('%H:%M:%S')}")
+        print(f"  [TIMING] Starting CSP solving at {time.strftime('%H:%M:%S')}", flush=True)
         try:
+            print(f"  [TIMING] About to call csp_solver.solve...", flush=True)
             solution = self.csp_solver.solve(csp)
+            print(f"  [TIMING] csp_solver.solve returned", flush=True)
             if solution is None:
                 result["errors"].append("CSP solver found no solution")
                 print(f"  [TIMING] CSP solving failed at {time.strftime('%H:%M:%S')}")
@@ -174,16 +180,18 @@ class PuzzleSolver:
             result["steps"]["csp_solving"] = {
                 "num_variables_assigned": len(solution),
             }
-            print(f"  [TIMING] CSP solving done at {time.strftime('%H:%M:%S')}")
+            print(f"  [TIMING] CSP solving done at {time.strftime('%H:%M:%S')}", flush=True)
             logger.info(f"  ✓ Solution found: {len(solution)} variables assigned")
             result["success"] = True
 
         except Exception as e:
             result["errors"].append(f"CSP solving error: {e}")
             logger.error(f"CSP solving failed: {e}")
+            import traceback
+            traceback.print_exc()
             return result
 
-        print(f"  [TIMING] Puzzle solved at {time.strftime('%H:%M:%S')}")
+        print(f"  [TIMING] Puzzle solved at {time.strftime('%H:%M:%S')}", flush=True)
         logger.info("✓ Puzzle solved successfully!")
         return result
 
