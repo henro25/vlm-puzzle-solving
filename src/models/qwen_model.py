@@ -44,6 +44,7 @@ class QwenVLModel(VLMInterface):
     def load_model(self) -> None:
         """Load Qwen2-VL model and processor."""
         logger.info(f"Loading model {self.model_name} on {self.device}")
+        print(f"  → Loading checkpoint shards...")
 
         # Set precision
         dtype = torch.float16 if self.precision == "float16" else torch.float32
@@ -51,25 +52,32 @@ class QwenVLModel(VLMInterface):
         # Load model
         try:
             # Try with device_map first (requires accelerate)
+            logger.info("Attempting to load with device_map...")
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name,
                 dtype=dtype,
                 attn_implementation="flash_attention_2",
                 device_map=self.device,
             )
-        except ValueError:
+            logger.info("Model loaded with device_map")
+        except ValueError as e:
             # Fallback: load without device_map and move manually
             logger.info("Loading without device_map, will move to device manually")
+            print(f"  → Loading model weights to CPU...")
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name,
                 torch_dtype=dtype,
             )
+            print(f"  → Moving model to {self.device}...")
             self.model = self.model.to(self.device)
+            logger.info(f"Model loaded and moved to {self.device}")
 
         # Load processor
+        print(f"  → Loading processor...")
         self.processor = AutoProcessor.from_pretrained(self.model_name)
+        logger.info(f"Processor loaded")
 
-        logger.info(f"Model loaded successfully")
+        logger.info(f"✓ Model loaded successfully on {self.device}")
 
     def unload_model(self) -> None:
         """Unload model from memory."""
@@ -105,6 +113,7 @@ class QwenVLModel(VLMInterface):
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
         # Load image if path provided
+        logger.debug("Loading image...")
         if isinstance(image, (str, Path)):
             image = load_image(image)
 
@@ -112,6 +121,7 @@ class QwenVLModel(VLMInterface):
         temperature = temperature or self.default_temperature
 
         # Prepare inputs using the new API
+        logger.debug("Preparing message format...")
         messages = [
             {
                 "role": "user",
@@ -123,11 +133,13 @@ class QwenVLModel(VLMInterface):
         ]
 
         # Process text and image together
+        logger.debug("Applying chat template...")
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
 
         # Process inputs (handles image internally)
+        logger.debug("Processing inputs (image + text)...")
         inputs = self.processor(
             text=text,
             images=[image],
@@ -136,6 +148,7 @@ class QwenVLModel(VLMInterface):
         ).to(self.device)
 
         # Generate
+        logger.debug(f"Generating response (max_tokens={max_tokens})...")
         with torch.no_grad():
             output_ids = self.model.generate(
                 **inputs,
@@ -144,6 +157,7 @@ class QwenVLModel(VLMInterface):
             )
 
         # Decode response
+        logger.debug("Decoding response...")
         generated_ids = [
             output_ids[len(inputs["input_ids"][i]) :]
             for i, output_ids in enumerate(output_ids)
@@ -151,6 +165,8 @@ class QwenVLModel(VLMInterface):
         response_text = self.processor.batch_decode(
             generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
+
+        logger.debug(f"Response generated: {len(response_text)} characters")
 
         return VLMResponse(
             text=response_text,
