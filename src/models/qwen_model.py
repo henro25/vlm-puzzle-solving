@@ -49,26 +49,34 @@ class QwenVLModel(VLMInterface):
         # Set precision
         dtype = torch.float16 if self.precision == "float16" else torch.float32
 
-        # Load model
+        # Load model directly to device (more efficient than CPU->GPU)
+        logger.info(f"Loading model directly to {self.device}...")
         try:
-            # Try with device_map first (requires accelerate)
-            logger.info("Attempting to load with device_map...")
-            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-                self.model_name,
-                dtype=dtype,
-                attn_implementation="flash_attention_2",
-                device_map=self.device,
-            )
-            logger.info("Model loaded with device_map")
-        except ValueError as e:
-            # Fallback: load without device_map and move manually
-            logger.info("Loading without device_map, will move to device manually")
-            print(f"  → Loading model weights to CPU...")
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name,
                 torch_dtype=dtype,
+                attn_implementation="flash_attention_2",
+                device_map="auto" if self.device == "cuda" else None,
             )
-            print(f"  → Moving model to {self.device}...")
+
+            # If device_map didn't work or CPU requested, move manually
+            if self.device == "cuda" and self.model.device.type != "cuda":
+                print(f"  → Moving model to GPU (device_map failed)...")
+                self.model = self.model.to(self.device)
+
+            logger.info(f"Model loaded on {self.model.device}")
+
+        except Exception as e:
+            logger.warning(f"Auto device mapping failed: {e}")
+            print(f"  → Loading model (will move to {self.device})...")
+            # Fallback: simple load and move
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                self.model_name,
+                torch_dtype=dtype,
+                attn_implementation="flash_attention_2",
+            )
+            if self.device == "cuda":
+                print(f"  → Moving model to GPU...")
             self.model = self.model.to(self.device)
             logger.info(f"Model loaded and moved to {self.device}")
 
@@ -77,7 +85,7 @@ class QwenVLModel(VLMInterface):
         self.processor = AutoProcessor.from_pretrained(self.model_name)
         logger.info(f"Processor loaded")
 
-        logger.info(f"✓ Model loaded successfully on {self.device}")
+        logger.info(f"✓ Model loaded successfully on {self.device.type if hasattr(self.device, 'type') else self.device}")
 
     def unload_model(self) -> None:
         """Unload model from memory."""
