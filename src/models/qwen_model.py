@@ -51,41 +51,47 @@ class QwenVLModel(VLMInterface):
 
         # Load model directly to device (more efficient than CPU->GPU)
         logger.info(f"Loading model directly to {self.device}...")
+
+        # Try with flash_attention_2, fall back if not available
+        load_kwargs = {
+            "torch_dtype": dtype,
+            "device_map": "auto" if self.device == "cuda" else None,
+        }
+
         try:
+            # First try with flash_attention_2 (faster but requires flash_attn package)
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name,
-                torch_dtype=dtype,
                 attn_implementation="flash_attention_2",
-                device_map="auto" if self.device == "cuda" else None,
+                **load_kwargs,
             )
+            logger.info("Model loaded with flash_attention_2")
 
-            # If device_map didn't work or CPU requested, move manually
-            if self.device == "cuda" and self.model.device.type != "cuda":
-                print(f"  → Moving model to GPU (device_map failed)...")
-                self.model = self.model.to(self.device)
+        except (ImportError, ValueError) as e:
+            # Flash attention not available, load without it
+            logger.warning(f"Flash attention not available ({type(e).__name__}), using standard attention")
+            print(f"  → Loading without flash_attention_2 (standard attention)...")
 
-            logger.info(f"Model loaded on {self.model.device}")
-
-        except Exception as e:
-            logger.warning(f"Auto device mapping failed: {e}")
-            print(f"  → Loading model (will move to {self.device})...")
-            # Fallback: simple load and move
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name,
-                torch_dtype=dtype,
-                attn_implementation="flash_attention_2",
+                **load_kwargs,
             )
-            if self.device == "cuda":
-                print(f"  → Moving model to GPU...")
+            logger.info("Model loaded with standard attention")
+
+        # If device_map didn't work or CPU requested, move manually
+        if self.device == "cuda" and hasattr(self.model, "device") and self.model.device.type != "cuda":
+            print(f"  → Moving model to GPU...")
             self.model = self.model.to(self.device)
-            logger.info(f"Model loaded and moved to {self.device}")
+            logger.info(f"Model moved to {self.device}")
+
+        logger.info(f"Model loaded successfully")
 
         # Load processor
         print(f"  → Loading processor...")
         self.processor = AutoProcessor.from_pretrained(self.model_name)
         logger.info(f"Processor loaded")
 
-        logger.info(f"✓ Model loaded successfully on {self.device.type if hasattr(self.device, 'type') else self.device}")
+        logger.info(f"✓ Setup complete")
 
     def unload_model(self) -> None:
         """Unload model from memory."""
