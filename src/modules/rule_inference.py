@@ -103,21 +103,27 @@ class RuleInferenceModule:
 
         # Parse response
         self.logger.debug("Parsing VLM response...")
+        print(f"  [rule_inference] Parsing VLM response...", flush=True)
         rules = extract_rules_from_vlm_response(response.text)
+        print(f"  [rule_inference] Parsing complete", flush=True)
 
         if rules is None:
             self.logger.error("Failed to parse VLM response into rules")
             return None
 
         self.logger.info(f"Inferred {len(rules.rules)} rules")
+        print(f"  [rule_inference] Inferred {len(rules.rules)} rules", flush=True)
 
         # Validate rules
         if validate:
             self.logger.debug("Validating inferred rules...")
+            print(f"  [rule_inference] Validating rules...", flush=True)
             is_valid = self.validate_rules(rules, examples)
+            print(f"  [rule_inference] Validation complete", flush=True)
             if not is_valid:
                 self.logger.warning("Rule validation failed, but continuing anyway")
 
+        print(f"  [rule_inference] Done", flush=True)
         return rules
 
     def validate_rules(
