@@ -161,13 +161,15 @@ class QwenVLModel(VLMInterface):
             return_tensors="pt",
         ).to(self.device)
 
-        # Generate
+        # Generate with optimizations
         logger.debug(f"Generating response (max_tokens={max_tokens})...")
         with torch.no_grad():
             output_ids = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
                 temperature=temperature,
+                do_sample=False,  # Greedy decoding (faster, deterministic)
+                num_beams=1,  # No beam search (faster)
             )
 
         # Decode response

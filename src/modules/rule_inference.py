@@ -82,14 +82,14 @@ class RuleInferenceModule:
                 response = self.vlm.query(
                     image=images[0],
                     prompt=f"{prompt}\n\nNote: Analyzing puzzle #1 along with {len(images)-1} other similar puzzles.",
-                    max_tokens=2048,
+                    max_tokens=512,  # Reduced from 2048 for faster inference
                 )
             else:
                 self.logger.info(f"Querying VLM with image: {images[0]}")
                 response = self.vlm.query(
                     image=images[0],
                     prompt=prompt,
-                    max_tokens=2048,
+                    max_tokens=512,  # Reduced from 2048 for faster inference
                 )
 
             self.logger.info(f"VLM response received ({len(response.text)} chars)")
