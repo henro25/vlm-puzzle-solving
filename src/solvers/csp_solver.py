@@ -53,29 +53,39 @@ class CSPSolver:
         Returns:
             Solution dict {variable_name: value} or None if unsolvable
         """
+        import sys
         logger.info(f"Solving CSP with {len(csp_problem.variables)} variables, {len(csp_problem.constraints)} constraints")
+        print(f"  [csp_solver] Building constraint problem...", flush=True)
 
         try:
+            start_build = time.time()
             problem = self._build_constraint_problem(csp_problem)
+            build_time = time.time() - start_build
+            print(f"  [csp_solver] Built in {build_time:.2f}s", flush=True)
 
             if problem is None:
                 logger.error("Failed to build constraint problem")
                 return None
 
             # Solve with timeout
+            print(f"  [csp_solver] Starting solve (timeout={self.timeout}s)...", flush=True)
             start_time = time.time()
             solution = problem.getSolution()
             elapsed = time.time() - start_time
+            print(f"  [csp_solver] Solve completed in {elapsed:.2f}s", flush=True)
 
             if solution is None:
                 logger.warning(f"No solution found (time: {elapsed:.2f}s)")
+                print(f"  [csp_solver] No solution found", flush=True)
                 return None
 
             logger.info(f"Solution found in {elapsed:.2f}s")
+            print(f"  [csp_solver] Solution found!", flush=True)
             return solution
 
         except Exception as e:
             logger.error(f"Solver error: {e}")
+            print(f"  [csp_solver] Error: {e}", flush=True)
             import traceback
             traceback.print_exc()
             return None
