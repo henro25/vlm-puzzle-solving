@@ -2,6 +2,7 @@
 
 import logging
 import time
+import threading
 from typing import Optional, Dict, Any, List
 
 try:
@@ -67,13 +68,40 @@ class CSPSolver:
                 logger.error("Failed to build constraint problem")
                 return None
 
-            # Solve with timeout
+            # Solve with timeout using threading
             print(f"  [csp_solver] Starting solve (timeout={self.timeout}s)...", flush=True)
             start_time = time.time()
-            solution = problem.getSolution()
+
+            # Use thread-based timeout to enforce actual timeout
+            solution_container = {"solution": None}
+            error_container = {"error": None}
+
+            def solve_worker():
+                try:
+                    solution_container["solution"] = problem.getSolution()
+                except Exception as e:
+                    error_container["error"] = e
+
+            solver_thread = threading.Thread(target=solve_worker, daemon=True)
+            solver_thread.start()
+            solver_thread.join(timeout=self.timeout)
+
             elapsed = time.time() - start_time
+
+            if solver_thread.is_alive():
+                # Timeout occurred
+                logger.warning(f"Solver timeout after {self.timeout}s")
+                print(f"  [csp_solver] Timeout after {self.timeout:.2f}s", flush=True)
+                return None
+
+            if error_container["error"] is not None:
+                logger.error(f"Solver error: {error_container['error']}")
+                print(f"  [csp_solver] Error: {error_container['error']}", flush=True)
+                return None
+
             print(f"  [csp_solver] Solve completed in {elapsed:.2f}s", flush=True)
 
+            solution = solution_container["solution"]
             if solution is None:
                 logger.warning(f"No solution found (time: {elapsed:.2f}s)")
                 print(f"  [csp_solver] No solution found", flush=True)
