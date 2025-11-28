@@ -26,33 +26,62 @@ Solved Examples → VLM Rule Inference → Inferred Rules
                                           Solution
 ```
 
-## Project Status
+## Project Status - **IN PROGRESS**
 
-- ✅ **Phase 1**: Foundation & Infrastructure (Complete)
-  - Project structure created
-  - Configuration system
-  - VLM interface (Qwen2-VL)
-  - Core data structures
-  - Dataset management
+### Completed ✅
 
-- 🚀 **Phase 2**: Rule Inference Module (In Progress)
-  - Prompt templates
-  - Rule parser
-  - RuleInferenceModule
+- **Phase 1**: Foundation & Infrastructure
+  - Project structure and configuration system
+  - VLM interface (Qwen2-VL-7B-Instruct)
+  - Core data structures (PuzzleState, ConstraintRuleSet, CSPProblem)
+  - Dataset management (SudokuDataset with solved/unsolved splits)
 
-- ✅ **Phase 3**: State Extraction Module (Complete)
-  - VLM-based cell value extraction
+- **Phase 2**: Rule Inference Module
+  - Prompt templates for rule discovery
+  - Rule parser (VLM response → ConstraintRule)
+  - RuleInferenceModule with validation
+  - Support for AllDifferent, Sum, and Arithmetic constraints
+
+- **Phase 3**: State Extraction Module
+  - VLM-based grid cell extraction
   - JSON parsing with error recovery
-  - State validation and confidence scoring
+  - PuzzleState creation from VLM output
+  - Ground truth state support
 
-- ✅ **Phase 4**: CSP Translation & Solving (Complete)
-  - Rule-to-CSP translation
-  - Optimized python-constraint solver (15-60x speedup)
-  - Fast OR-Tools solver (150-600x speedup over original)
-  - Automatic solver selection with fallback
-  - Performance diagnostics tools
+- **Phase 4**: CSP Translation & Solving
+  - CSPTranslator (rules + state → CSP)
+  - python-constraint solver with heuristics (domain size, constraint ordering)
+  - Thread-based timeout enforcement (fixes 20+ minute hanging issue)
+  - OR-Tools integration (faster but needs constraint improvements)
+  - SolverFactory with automatic fallback
 
-- ⏳ **Phase 5-6**: Evaluation, analysis, hierarchical extensions
+### Current Issues & In Progress 🔧
+
+- **CSP Solver Performance**: python-constraint solves Sudoku but times out after 60s on some puzzles
+  - Root cause: Pure Python backtracking without domain-specific optimizations
+  - OR-Tools attempted but MODEL_INVALID errors on some constraint types
+  - Status: Using python-constraint as default with working timeout
+  - Need: Better constraint propagation or smarter heuristics
+
+- **Model Loading**: Fixed 5-minute hang with `accelerate` library
+  - GPU device mapping now works correctly
+  - Flash attention made optional (graceful fallback)
+
+- **Inference Optimization**: Reduced max_tokens (2048 → 512) for Sudoku rules
+  - Inference now ~8 seconds instead of 30+
+
+### Pending ⏳
+
+- **Phase 5**: Comprehensive Evaluation
+  - End-to-end testing on puzzle set
+  - Success rate metrics
+  - Error analysis and categorization
+  - Performance profiling
+
+- **Phase 6**: Extensions (Optional)
+  - Hierarchical constraint discovery
+  - Uncertainty-aware solving
+  - Support for other puzzle types
 
 ## Quick Start
 
@@ -427,36 +456,42 @@ pytest --cov=src tests/
 
 ## Performance Notes
 
-- **VLM Loading**: ~30-45 seconds (first time)
-- **Inference per puzzle**: ~2-5 seconds (Qwen2-VL-7B)
-- **CSP Solving**: 50-200ms with OR-Tools (optimized), <1s with optimized python-constraint
-  - Bottleneck: Rule inference and VLM inference (not CSP solving)
-  - See [Phase 4 Optimizations](PHASE4_OPTIMIZATIONS.md) for solver selection
-- **GPU Memory**: ~15GB for Qwen2-VL-7B (float16)
+**Current Timing (with fixes)**:
+- **VLM Model Load**: 5-10 seconds (with `accelerate` library and GPU)
+- **Rule Inference**: ~8 seconds per puzzle (1099 tokens, Qwen2-VL-7B on A100)
+- **State Extraction**: <1 second (instant with ground truth)
+- **CSP Solving**: 60+ seconds (timeout) with python-constraint
+  - Bottleneck: CSP solver doesn't have strong domain-specific optimizations
+  - Search space: 81 variables with 27+ all-different constraints
 
-### CSP Solver Performance
-
-The system uses **Google OR-Tools** by default for 5-100x speedup:
+**Solver Options**:
 
 ```python
-# Automatic solver selection (OR-Tools if available, fallback to python-constraint)
+from src.modules.puzzle_solver import PuzzleSolver
+
+# Default: python-constraint with thread-based timeout
 solver = PuzzleSolver(vlm)
 
-# Or explicitly choose solver
-solver = PuzzleSolver(vlm, csp_solver_backend="ortools")  # Fast
-solver = PuzzleSolver(vlm, csp_solver_backend="constraint")  # Compatible
+# Explicit selection
+solver = PuzzleSolver(vlm, csp_solver_backend="constraint")  # Recommended
+solver = PuzzleSolver(vlm, csp_solver_backend="ortools")  # Experimental (needs fixing)
+solver = PuzzleSolver(vlm, csp_solver_backend="auto")  # Falls back to constraint
 ```
 
-**Benchmark Results**:
-| Solver | Time | Speedup |
-|--------|------|---------|
-| python-constraint (original) | 30+ seconds | 1x |
-| python-constraint (optimized) | 0.5-2s | 15-60x |
-| OR-Tools | 0.05-0.2s | 150-600x |
+**Timing Breakdown**:
+| Phase | Time | Status |
+|-------|------|--------|
+| Model Load | 5-10s | ✅ Fast |
+| Rule Inference | ~8s | ✅ Fast |
+| State Extraction | <1s | ✅ Fast |
+| CSP Translation | <1s | ✅ Fast |
+| CSP Solving | 60s+ | ⚠️ Slow (timeout) |
+| **Total per puzzle** | **~75-85s** | ⚠️ |
 
-For performance diagnostics and solver comparison, see:
-- `experiments/diagnose_csp_performance.py` - Performance analysis
-- `experiments/compare_solvers.py` - Solver comparison
+**Known Issues**:
+- python-constraint timeouts on some puzzles (60s limit)
+- OR-Tools returns MODEL_INVALID on current CSP structure
+- Need better constraint propagation or heuristics
 
 ## References
 
