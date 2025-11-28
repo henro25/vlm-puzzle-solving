@@ -26,7 +26,7 @@ class PuzzleSolver:
     5. Return solution
     """
 
-    def __init__(self, vlm: VLMInterface, csp_solver_backend: str = "auto"):
+    def __init__(self, vlm: VLMInterface, csp_solver_backend: str = "constraint"):
         """
         Initialize puzzle solver.
 

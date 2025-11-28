@@ -18,12 +18,12 @@ class SolverFactory:
     """
 
     @staticmethod
-    def create_solver(backend: str = "ortools", **kwargs):
+    def create_solver(backend: str = "constraint", **kwargs):
         """
         Create a solver with the specified backend.
 
         Args:
-            backend: "constraint" or "ortools" or "auto" (default)
+            backend: "constraint" or "ortools" or "auto" (default: "constraint")
             **kwargs: Additional arguments for solver initialization
 
         Returns:
@@ -34,30 +34,26 @@ class SolverFactory:
             ImportError: If required library is not installed
         """
         if backend == "auto":
-            # Auto-select: try OR-Tools, fall back to python-constraint
-            try:
-                from src.solvers.ortools_solver import ORToolsSolver
-                logger.info("Using OR-Tools solver (fast, optimized for structured problems)")
-                return ORToolsSolver(**kwargs)
-            except ImportError:
-                logger.warning("OR-Tools not available. Using python-constraint solver.")
-                backend = "constraint"
+            # Auto-select: use python-constraint (more reliable for now)
+            # OR-Tools needs more work to handle arbitrary constraints
+            logger.info("Using python-constraint solver (reliable, with timeout support)")
+            backend = "constraint"
+
+        if backend == "constraint":
+            from src.solvers.csp_solver import CSPSolver
+            logger.info("Using python-constraint solver (flexible, with thread-based timeout)")
+            return CSPSolver(**kwargs)
 
         if backend == "ortools":
             try:
                 from src.solvers.ortools_solver import ORToolsSolver
-                logger.info("Using OR-Tools solver (fast, optimized for structured problems)")
+                logger.info("Using OR-Tools solver (faster, but limited constraint support)")
                 return ORToolsSolver(**kwargs)
             except ImportError as e:
                 logger.warning(f"OR-Tools not available: {e}. Falling back to python-constraint.")
-                backend = "constraint"
+                return SolverFactory.create_solver(backend="constraint", **kwargs)
 
-        if backend == "constraint":
-            from src.solvers.csp_solver import CSPSolver
-            logger.info("Using python-constraint solver (flexible, slower)")
-            return CSPSolver(**kwargs)
-
-        raise ValueError(f"Unknown solver backend: {backend}. Use 'ortools', 'constraint', or 'auto'.")
+        raise ValueError(f"Unknown solver backend: {backend}. Use 'constraint', 'ortools', or 'auto'.")
 
     @staticmethod
     def solve_fast(csp_problem: CSPProblem, timeout: int = 60) -> Optional[Dict[str, int]]:

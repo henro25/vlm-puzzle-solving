@@ -141,25 +141,17 @@ class ORToolsSolver:
             logger.debug("Creating decision variables...")
             for var_name, variable in csp_problem.variables.items():
                 domain = variable.domain
-                if len(domain) == 1:
-                    # Fixed variable
-                    cp_var = model.NewIntVar(domain[0], domain[0], var_name)
-                else:
-                    # Variable with domain
-                    # For Sudoku and similar problems, domain is always [1-9]
-                    # OR-Tools requires contiguous domains, so we use min/max
-                    cp_var = model.NewIntVar(min(domain), max(domain), var_name)
 
-                    # If domain is not contiguous, add explicit constraint
-                    # This is rare for Sudoku but handles edge cases
-                    if max(domain) - min(domain) + 1 != len(domain):
-                        # Add constraint: variable must be one of the allowed values
-                        allowed_values = domain
-                        model.AddAllowedAssignments([cp_var], [[v] for v in allowed_values])
+                # For Sudoku and similar problems, domain is typically [1-9]
+                # OR-Tools requires contiguous domains, so we use min/max
+                min_val = min(domain)
+                max_val = max(domain)
 
+                cp_var = model.NewIntVar(min_val, max_val, var_name)
                 self.var_map[var_name] = cp_var
+
                 logger.debug(
-                    f"Created variable {var_name} with domain size {len(domain)}"
+                    f"Created variable {var_name} with domain {min_val}-{max_val} (size: {len(domain)})"
                 )
 
             # Add constraints
