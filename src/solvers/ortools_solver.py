@@ -154,7 +154,8 @@ class ORToolsSolver:
                     # This is rare for Sudoku but handles edge cases
                     if max(domain) - min(domain) + 1 != len(domain):
                         # Add constraint: variable must be one of the allowed values
-                        model.Add(cp_var.Proto().domain.extend(domain))
+                        allowed_values = domain
+                        model.AddAllowedAssignments([cp_var], [[v] for v in allowed_values])
 
                 self.var_map[var_name] = cp_var
                 logger.debug(
@@ -163,7 +164,9 @@ class ORToolsSolver:
 
             # Add constraints
             logger.debug("Adding constraints...")
+            supported_constraint_count = 0
             unsupported_constraint_count = 0
+
             for constraint in csp_problem.constraints:
                 if constraint.predicate is None:
                     logger.warning(f"Skipping constraint {constraint.name} with no predicate")
@@ -173,35 +176,64 @@ class ORToolsSolver:
                     # Get variables in scope
                     scope_vars = [self.var_map[var] for var in constraint.scope]
 
-                    # Handle different constraint types
-                    if constraint.name.startswith("all_different"):
-                        # AllDifferent constraint
+                    # Handle different constraint types by name or pattern
+                    constraint_name = constraint.name.lower()
+
+                    if "all_different" in constraint_name or "alldiff" in constraint_name:
+                        # AllDifferent constraint (most common for Sudoku)
                         model.AddAllDifferent(scope_vars)
+                        supported_constraint_count += 1
                         logger.debug(
                             f"Added AllDifferent constraint on {len(scope_vars)} variables"
                         )
-                    elif constraint.name.startswith("sum"):
+                    elif "sum" in constraint_name:
                         # Sum constraint
                         target_sum = constraint.parameters.get("sum", 0)
                         model.Add(sum(scope_vars) == target_sum)
+                        supported_constraint_count += 1
                         logger.debug(f"Added Sum constraint (target={target_sum})")
                     else:
-                        # Generic constraint: OR-Tools doesn't support arbitrary predicates
-                        # This is a limitation - complex constraints need fallback solver
-                        logger.warning(f"OR-Tools cannot handle constraint {constraint.name} directly")
-                        unsupported_constraint_count += 1
+                        # Try to use the predicate to generate allowed assignments
+                        # This works for small scopes but is expensive for large ones
+                        if len(scope_vars) <= 4:
+                            # Generate allowed assignments by testing predicate
+                            allowed = self._generate_allowed_assignments(
+                                constraint, scope_vars, csp_problem
+                            )
+                            if allowed:
+                                model.AddAllowedAssignments(scope_vars, allowed)
+                                supported_constraint_count += 1
+                                logger.debug(
+                                    f"Added constraint {constraint.name} via allowed assignments"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Could not generate allowed assignments for {constraint.name}"
+                                )
+                                unsupported_constraint_count += 1
+                        else:
+                            # Too large to enumerate - skip
+                            logger.warning(
+                                f"Constraint {constraint.name} with scope {len(scope_vars)} is too large to enumerate. Skipping."
+                            )
+                            unsupported_constraint_count += 1
 
                 except Exception as e:
                     logger.error(f"Failed to add constraint {constraint.name}: {e}")
                     unsupported_constraint_count += 1
 
+            logger.info(
+                f"OR-Tools model created with {len(self.var_map)} variables, "
+                f"{supported_constraint_count} supported constraints, "
+                f"{unsupported_constraint_count} unsupported constraints"
+            )
+
             if unsupported_constraint_count > 0:
                 logger.warning(
                     f"OR-Tools model has {unsupported_constraint_count} unsupported constraints. "
-                    f"Solution may be incomplete or incorrect. Consider using python-constraint solver."
+                    f"Solution may be incomplete. Consider using python-constraint solver."
                 )
 
-            logger.info(f"OR-Tools model created with {len(self.var_map)} variables")
             return model
 
         except Exception as e:
@@ -209,3 +241,40 @@ class ORToolsSolver:
             import traceback
             traceback.print_exc()
             return None
+
+    def _generate_allowed_assignments(
+        self, constraint: Any, scope_vars: List[Any], csp_problem: CSPProblem
+    ) -> List[List[int]]:
+        """
+        Generate allowed assignments for a constraint by testing the predicate.
+
+        This is expensive but works for arbitrary predicates on small scopes.
+        """
+        try:
+            from itertools import product
+
+            # Get domains for all variables in constraint
+            domains = []
+            for var_name in constraint.scope:
+                domain = csp_problem.variables[var_name].domain
+                domains.append(domain)
+
+            # Test all combinations
+            allowed = []
+            for assignment_tuple in product(*domains):
+                assignment_dict = {
+                    var: val
+                    for var, val in zip(constraint.scope, assignment_tuple)
+                }
+                try:
+                    if constraint.predicate(assignment_dict, constraint.parameters):
+                        allowed.append(list(assignment_tuple))
+                except Exception:
+                    # Predicate failed for this assignment - not allowed
+                    pass
+
+            return allowed
+
+        except Exception as e:
+            logger.error(f"Failed to generate allowed assignments: {e}")
+            return []

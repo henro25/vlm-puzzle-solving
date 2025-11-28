@@ -26,13 +26,13 @@ class PuzzleSolver:
     5. Return solution
     """
 
-    def __init__(self, vlm: VLMInterface, csp_solver_backend: str = "constraint"):
+    def __init__(self, vlm: VLMInterface, csp_solver_backend: str = "auto"):
         """
         Initialize puzzle solver.
 
         Args:
             vlm: Vision-Language Model interface
-            csp_solver_backend: Solver backend ("ortools" or "constraint")
+            csp_solver_backend: Solver backend ("ortools", "constraint", or "auto")
         """
         self.vlm = vlm
         self.rule_module = RuleInferenceModule(vlm)
